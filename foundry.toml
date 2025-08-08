@@ -1,0 +1,20 @@
+[profile.default]
+libs = ["dependencies", "lib"]
+out = "out"
+src = "src"
+
+[fmt]
+bracket_spacing = true
+int_types = "short"
+line_length = 120
+multiline_func_header = "all"
+number_underscore = "thousands"
+quote_style = "single"
+
+[dependencies]
+forge-std = "1.10.0"
+"@openzeppelin-contracts-upgradeable" = "5.4.0"
+"@openzeppelin-contracts" = "5.4.0"
+openzeppelin-foundry-upgrades = "0.4.0"
+
+# See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
