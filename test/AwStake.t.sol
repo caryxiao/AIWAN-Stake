@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "forge-std/Test.sol";
-import {AwStake} from "../src/AwStake.sol";
-import {AwToken} from "../src/AwToken.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {console2} from "forge-std/console2.sol";
-import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import 'forge-std/Test.sol';
+import { AwStake } from '../src/AwStake.sol';
+import { AwToken } from '../src/AwToken.sol';
+import { IERC20 } from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import { console2 } from 'forge-std/console2.sol';
+import { Strings } from '@openzeppelin/contracts/utils/Strings.sol';
 
 contract TestableAwStake is AwStake {
     function testGrantRole(bytes32 role, address account) external {
@@ -22,7 +22,7 @@ contract AwStakeTest is Test {
     address internal user1;
     address internal user2;
 
-    uint256 internal constant ONE = 1e18;
+    uint internal constant ONE = 1e18;
 
     function setUp() public {
         admin = address(this);
@@ -35,9 +35,9 @@ contract AwStakeTest is Test {
 
         // 部署可测试的质押合约并初始化
         stake = new TestableAwStake();
-        uint256 start = block.number + 5;
-        uint256 end = start + 10_000;
-        uint256 rewardPerBlock = 1 * ONE; // 1e18 精度
+        uint start = block.number + 5;
+        uint end = start + 10_000;
+        uint rewardPerBlock = 1 * ONE; // 1e18 精度
         stake.initialize(admin, start, end, rewardPerBlock);
 
         // 设置奖励代币为 AwToken
@@ -73,79 +73,71 @@ contract AwStakeTest is Test {
     }
 
     function test_stake_claim_award_erc20_pool() public {
-        uint256 poolId = 1; // ERC20 pool (AwToken)
-        uint256 amount = 100 * ONE;
+        uint poolId = 1; // ERC20 pool (AwToken)
+        uint amount = 100 * ONE;
 
         // 授权并质押（必须由具备 ADMIN_ROLE 的账户发起）
         aw.approve(address(stake), amount);
         stake.deposit(poolId, amount);
 
         // 推进到奖励开始后 100 区块
-        uint256 before = aw.balanceOf(admin);
+        uint before = aw.balanceOf(admin);
         vm.roll(stake.rewardStartBlock() + 100);
 
         // 领取奖励
         stake.claim(poolId);
-        uint256 afterBal = aw.balanceOf(admin);
-        assertGt(afterBal, before, "claim should transfer rewards to admin");
+        uint afterBal = aw.balanceOf(admin);
+        assertGt(afterBal, before, 'claim should transfer rewards to admin');
     }
 
     function test_unstake_and_withdraw_when_unlocked() public {
-        uint256 poolId = 1; // ERC20 pool (AwToken)
-        uint256 amount = 50 * ONE;
+        uint poolId = 1; // ERC20 pool (AwToken)
+        uint amount = 50 * ONE;
 
         // 先质押
         aw.approve(address(stake), amount);
         stake.deposit(poolId, amount);
 
         // 解质押一部分，产生解质押请求
-        uint256 unstakeAmt = 20 * ONE;
+        uint unstakeAmt = 20 * ONE;
         stake.unstake(poolId, unstakeAmt);
 
         // 未到解锁区块时 withdraw 不会转账
-        uint256 balBefore = aw.balanceOf(admin);
+        uint balBefore = aw.balanceOf(admin);
         stake.withdraw(poolId, 0);
-        assertEq(aw.balanceOf(admin), balBefore, "no withdraw before unlock");
+        assertEq(aw.balanceOf(admin), balBefore, 'no withdraw before unlock');
 
         // 推进区块到解锁（初始化时锁定 10 个区块）
         vm.roll(stake.rewardStartBlock() + 12);
 
         // 提现应到账
         stake.withdraw(poolId, 0);
-        uint256 balAfter = aw.balanceOf(admin);
-        assertEq(
-            balAfter,
-            balBefore + unstakeAmt,
-            "withdraw should transfer unstaked tokens"
-        );
+        uint balAfter = aw.balanceOf(admin);
+        assertEq(balAfter, balBefore + unstakeAmt, 'withdraw should transfer unstaked tokens');
     }
 
     function test_deposit_native_pool0_and_claim() public {
         // 向合约发送一些以太用作原生质押
-        uint256 nativeAmt = 1 ether;
+        uint nativeAmt = 1 ether;
         vm.deal(admin, nativeAmt);
 
         // pool 0 为原生币池
-        stake.depositNative{value: nativeAmt}();
+        stake.depositNative{ value: nativeAmt }();
 
         // 推进到奖励开始后 50 区块
         vm.roll(stake.rewardStartBlock() + 50);
 
         // 领取奖励（奖励为 AwToken，从合约余额中发放）
-        uint256 before = aw.balanceOf(admin);
+        uint before = aw.balanceOf(admin);
         stake.claim(0);
-        uint256 afterBal = aw.balanceOf(admin);
-        assertGt(
-            afterBal,
-            before,
-            "claim on native pool should pay rewards in AwToken"
-        );
+        uint afterBal = aw.balanceOf(admin);
+        assertGt(afterBal, before, 'claim on native pool should pay rewards in AwToken');
     }
 
     function test_multi_users_stake_and_claim_proportional() public {
-        uint256 poolId = 1;
-        uint256 a1 = 200 * ONE;
-        uint256 a2 = 800 * ONE;
+        uint poolId = 1;
+        uint a1 = 200 * ONE;
+        uint a2 = 800 * ONE;
 
         // user1 质押
         vm.startPrank(user1);
@@ -164,38 +156,30 @@ contract AwStakeTest is Test {
 
         // 记录前余额并领取
         vm.startPrank(user1);
-        uint256 u1Before = aw.balanceOf(user1);
+        uint u1Before = aw.balanceOf(user1);
         stake.claim(poolId);
-        uint256 u1Reward = aw.balanceOf(user1) - u1Before;
+        uint u1Reward = aw.balanceOf(user1) - u1Before;
         vm.stopPrank();
 
         vm.startPrank(user2);
-        uint256 u2Before = aw.balanceOf(user2);
+        uint u2Before = aw.balanceOf(user2);
         stake.claim(poolId);
-        uint256 u2Reward = aw.balanceOf(user2) - u2Before;
+        uint u2Reward = aw.balanceOf(user2) - u2Before;
         vm.stopPrank();
 
         // 奖励应近似按质押占比分配：u1Reward * a2 ≈ u2Reward * a1
         // 允许 1e12 的整数舍入误差
-        uint256 left = (u1Reward * a2) / ONE; // 归一化避免溢出
-        uint256 right = (u2Reward * a1) / ONE;
+        uint left = (u1Reward * a2) / ONE; // 归一化避免溢出
+        uint right = (u2Reward * a1) / ONE;
         if (left > right) {
-            assertLe(
-                left - right,
-                1e12,
-                "proportional rewards mismatch (left>right)"
-            );
+            assertLe(left - right, 1e12, 'proportional rewards mismatch (left>right)');
         } else {
-            assertLe(
-                right - left,
-                1e12,
-                "proportional rewards mismatch (right>left)"
-            );
+            assertLe(right - left, 1e12, 'proportional rewards mismatch (right>left)');
         }
     }
 
     function test_print_event_logs_reward_update() public {
-        uint256 poolId = 1;
+        uint poolId = 1;
 
         // 先准备轻量质押以激活奖励累计
         aw.approve(address(stake), 1 * ONE);
@@ -210,30 +194,25 @@ contract AwStakeTest is Test {
         Vm.Log[] memory entries = vm.getRecordedLogs();
 
         // 事件签名
-        bytes32 REWARD_SIG = keccak256(
-            bytes("StakePoolRewardUpdated(uint256,uint256,uint256)")
-        );
+        bytes32 REWARD_SIG = keccak256(bytes('StakePoolRewardUpdated(uint256,uint256,uint256)'));
 
-        for (uint256 i = 0; i < entries.length; i++) {
+        for (uint i = 0; i < entries.length; i++) {
             Vm.Log memory log = entries[i];
             if (log.topics.length > 0 && log.topics[0] == REWARD_SIG) {
-                uint256 stakePoolId = uint256(log.topics[1]);
-                (uint256 lastRewardBlock, uint256 addedReward) = abi.decode(
-                    log.data,
-                    (uint256, uint256)
-                );
+                uint stakePoolId = uint(log.topics[1]);
+                (uint lastRewardBlock, uint addedReward) = abi.decode(log.data, (uint, uint));
 
                 console2.log(
                     string(
                         abi.encodePacked(
-                            "StakePoolRewardUpdated ",
-                            "stakePoolId:",
+                            'StakePoolRewardUpdated ',
+                            'stakePoolId:',
                             Strings.toString(stakePoolId),
-                            " ",
-                            "lastRewardBlock:",
+                            ' ',
+                            'lastRewardBlock:',
                             Strings.toString(lastRewardBlock),
-                            " ",
-                            "addedReward:",
+                            ' ',
+                            'addedReward:',
                             Strings.toString(addedReward)
                         )
                     )
@@ -244,7 +223,7 @@ contract AwStakeTest is Test {
 
     function test_print_all_events() public {
         // 触发全量事件：创建池、参数更新、质押/解质押/提现/领取/奖励更新
-        uint256 erc20Pool = 1;
+        uint erc20Pool = 1;
 
         // 记录日志
         vm.recordLogs();
@@ -277,213 +256,183 @@ contract AwStakeTest is Test {
 
         // 获取并解析日志
         Vm.Log[] memory logs = vm.getRecordedLogs();
-        bytes32 SIG_StakePoolCreated = keccak256(
-            "StakePoolCreated(uint256,address,uint256,uint256,uint256)"
-        );
-        bytes32 SIG_StakePoolWeightUpdated = keccak256(
-            "StakePoolWeightUpdated(uint256,uint256)"
-        );
-        bytes32 SIG_StakePoolMinStakeAmountUpdated = keccak256(
-            "StakePoolMinStakeAmountUpdated(uint256,uint256)"
-        );
-        bytes32 SIG_StakePoolUnstakeLockedBlocksUpdated = keccak256(
-            "StakePoolUnstakeLockedBlocksUpdated(uint256,uint256)"
-        );
-        bytes32 SIG_StakePoolRewardUpdated = keccak256(
-            "StakePoolRewardUpdated(uint256,uint256,uint256)"
-        );
-        bytes32 SIG_StakePoolUserDeposited = keccak256(
-            "StakePoolUserDeposited(uint256,address,uint256)"
-        );
-        bytes32 SIG_RequestedUnstake = keccak256(
-            "RequestedUnstake(uint256,address,uint256)"
-        );
-        bytes32 SIG_Withdraw = keccak256(
-            "Withdraw(uint256,address,uint256,uint256)"
-        );
-        bytes32 SIG_ClaimedReward = keccak256(
-            "ClaimedReward(address,uint256,uint256)"
-        );
+        bytes32 SIG_StakePoolCreated = keccak256('StakePoolCreated(uint256,address,uint256,uint256,uint256)');
+        bytes32 SIG_StakePoolWeightUpdated = keccak256('StakePoolWeightUpdated(uint256,uint256)');
+        bytes32 SIG_StakePoolMinStakeAmountUpdated = keccak256('StakePoolMinStakeAmountUpdated(uint256,uint256)');
+        bytes32 SIG_StakePoolUnstakeLockedBlocksUpdated =
+            keccak256('StakePoolUnstakeLockedBlocksUpdated(uint256,uint256)');
+        bytes32 SIG_StakePoolRewardUpdated = keccak256('StakePoolRewardUpdated(uint256,uint256,uint256)');
+        bytes32 SIG_StakePoolUserDeposited = keccak256('StakePoolUserDeposited(uint256,address,uint256)');
+        bytes32 SIG_RequestedUnstake = keccak256('RequestedUnstake(uint256,address,uint256)');
+        bytes32 SIG_Withdraw = keccak256('Withdraw(uint256,address,uint256,uint256)');
+        bytes32 SIG_ClaimedReward = keccak256('ClaimedReward(address,uint256,uint256)');
 
-        for (uint256 i = 0; i < logs.length; i++) {
+        for (uint i = 0; i < logs.length; i++) {
             Vm.Log memory log = logs[i];
             bytes32 sig = log.topics.length > 0 ? log.topics[0] : bytes32(0);
 
             if (sig == SIG_StakePoolCreated) {
-                uint256 poolId = uint256(log.topics[1]);
-                address token = address(uint160(uint256(log.topics[2])));
-                (
-                    uint256 weight,
-                    uint256 minStakeAmount,
-                    uint256 lockedBlocks
-                ) = abi.decode(log.data, (uint256, uint256, uint256));
+                uint poolId = uint(log.topics[1]);
+                address token = address(uint160(uint(log.topics[2])));
+                (uint weight, uint minStakeAmount, uint lockedBlocks) = abi.decode(log.data, (uint, uint, uint));
                 console2.log(
                     string(
                         abi.encodePacked(
-                            "StakePoolCreated ",
-                            "poolId:",
+                            'StakePoolCreated ',
+                            'poolId:',
                             Strings.toString(poolId),
-                            " ",
-                            "token:",
+                            ' ',
+                            'token:',
                             Strings.toHexString(uint160(token), 20),
-                            " ",
-                            "weight:",
+                            ' ',
+                            'weight:',
                             Strings.toString(weight),
-                            " ",
-                            "minStakeAmount:",
+                            ' ',
+                            'minStakeAmount:',
                             Strings.toString(minStakeAmount),
-                            " ",
-                            "unstakeLockedBlocks:",
+                            ' ',
+                            'unstakeLockedBlocks:',
                             Strings.toString(lockedBlocks)
                         )
                     )
                 );
             } else if (sig == SIG_StakePoolWeightUpdated) {
-                (uint256 poolId, uint256 weight) = abi.decode(
-                    log.data,
-                    (uint256, uint256)
-                );
+                (uint poolId, uint weight) = abi.decode(log.data, (uint, uint));
                 console2.log(
                     string(
                         abi.encodePacked(
-                            "StakePoolWeightUpdated ",
-                            "poolId:",
+                            'StakePoolWeightUpdated ',
+                            'poolId:',
                             Strings.toString(poolId),
-                            " ",
-                            "weight:",
+                            ' ',
+                            'weight:',
                             Strings.toString(weight)
                         )
                     )
                 );
             } else if (sig == SIG_StakePoolMinStakeAmountUpdated) {
-                uint256 poolId = uint256(log.topics[1]);
-                uint256 minStakeAmount = abi.decode(log.data, (uint256));
+                uint poolId = uint(log.topics[1]);
+                uint minStakeAmount = abi.decode(log.data, (uint));
                 console2.log(
                     string(
                         abi.encodePacked(
-                            "StakePoolMinStakeAmountUpdated ",
-                            "poolId:",
+                            'StakePoolMinStakeAmountUpdated ',
+                            'poolId:',
                             Strings.toString(poolId),
-                            " ",
-                            "minStakeAmount:",
+                            ' ',
+                            'minStakeAmount:',
                             Strings.toString(minStakeAmount)
                         )
                     )
                 );
             } else if (sig == SIG_StakePoolUnstakeLockedBlocksUpdated) {
-                uint256 poolId = uint256(log.topics[1]);
-                uint256 lockedBlocks = abi.decode(log.data, (uint256));
+                uint poolId = uint(log.topics[1]);
+                uint lockedBlocks = abi.decode(log.data, (uint));
                 console2.log(
                     string(
                         abi.encodePacked(
-                            "StakePoolUnstakeLockedBlocksUpdated ",
-                            "poolId:",
+                            'StakePoolUnstakeLockedBlocksUpdated ',
+                            'poolId:',
                             Strings.toString(poolId),
-                            " ",
-                            "unstakeLockedBlocks:",
+                            ' ',
+                            'unstakeLockedBlocks:',
                             Strings.toString(lockedBlocks)
                         )
                     )
                 );
             } else if (sig == SIG_StakePoolRewardUpdated) {
-                uint256 poolId = uint256(log.topics[1]);
-                (uint256 lastRewardBlock, uint256 addedReward) = abi.decode(
-                    log.data,
-                    (uint256, uint256)
-                );
+                uint poolId = uint(log.topics[1]);
+                (uint lastRewardBlock, uint addedReward) = abi.decode(log.data, (uint, uint));
                 console2.log(
                     string(
                         abi.encodePacked(
-                            "StakePoolRewardUpdated ",
-                            "poolId:",
+                            'StakePoolRewardUpdated ',
+                            'poolId:',
                             Strings.toString(poolId),
-                            " ",
-                            "lastRewardBlock:",
+                            ' ',
+                            'lastRewardBlock:',
                             Strings.toString(lastRewardBlock),
-                            " ",
-                            "addedReward:",
+                            ' ',
+                            'addedReward:',
                             Strings.toString(addedReward)
                         )
                     )
                 );
             } else if (sig == SIG_StakePoolUserDeposited) {
-                uint256 poolId = uint256(log.topics[1]);
-                address user = address(uint160(uint256(log.topics[2])));
-                uint256 amount = abi.decode(log.data, (uint256));
+                uint poolId = uint(log.topics[1]);
+                address user = address(uint160(uint(log.topics[2])));
+                uint amount = abi.decode(log.data, (uint));
                 console2.log(
                     string(
                         abi.encodePacked(
-                            "StakePoolUserDeposited ",
-                            "poolId:",
+                            'StakePoolUserDeposited ',
+                            'poolId:',
                             Strings.toString(poolId),
-                            " ",
-                            "user:",
+                            ' ',
+                            'user:',
                             Strings.toHexString(uint160(user), 20),
-                            " ",
-                            "amount:",
+                            ' ',
+                            'amount:',
                             Strings.toString(amount)
                         )
                     )
                 );
             } else if (sig == SIG_RequestedUnstake) {
-                uint256 poolId = uint256(log.topics[1]);
-                address user = address(uint160(uint256(log.topics[2])));
-                uint256 amount = abi.decode(log.data, (uint256));
+                uint poolId = uint(log.topics[1]);
+                address user = address(uint160(uint(log.topics[2])));
+                uint amount = abi.decode(log.data, (uint));
                 console2.log(
                     string(
                         abi.encodePacked(
-                            "RequestedUnstake ",
-                            "poolId:",
+                            'RequestedUnstake ',
+                            'poolId:',
                             Strings.toString(poolId),
-                            " ",
-                            "user:",
+                            ' ',
+                            'user:',
                             Strings.toHexString(uint160(user), 20),
-                            " ",
-                            "amount:",
+                            ' ',
+                            'amount:',
                             Strings.toString(amount)
                         )
                     )
                 );
             } else if (sig == SIG_Withdraw) {
-                uint256 poolId = uint256(log.topics[1]);
-                address user = address(uint160(uint256(log.topics[2])));
-                (uint256 amount, uint256 blk) = abi.decode(
-                    log.data,
-                    (uint256, uint256)
-                );
+                uint poolId = uint(log.topics[1]);
+                address user = address(uint160(uint(log.topics[2])));
+                (uint amount, uint blk) = abi.decode(log.data, (uint, uint));
                 console2.log(
                     string(
                         abi.encodePacked(
-                            "Withdraw ",
-                            "poolId:",
+                            'Withdraw ',
+                            'poolId:',
                             Strings.toString(poolId),
-                            " ",
-                            "user:",
+                            ' ',
+                            'user:',
                             Strings.toHexString(uint160(user), 20),
-                            " ",
-                            "amount:",
+                            ' ',
+                            'amount:',
                             Strings.toString(amount),
-                            " ",
-                            "blockNumber:",
+                            ' ',
+                            'blockNumber:',
                             Strings.toString(blk)
                         )
                     )
                 );
             } else if (sig == SIG_ClaimedReward) {
-                address user = address(uint160(uint256(log.topics[1])));
-                uint256 poolId = uint256(log.topics[2]);
-                uint256 amount = abi.decode(log.data, (uint256));
+                address user = address(uint160(uint(log.topics[1])));
+                uint poolId = uint(log.topics[2]);
+                uint amount = abi.decode(log.data, (uint));
                 console2.log(
                     string(
                         abi.encodePacked(
-                            "ClaimedReward ",
-                            "user:",
+                            'ClaimedReward ',
+                            'user:',
                             Strings.toHexString(uint160(user), 20),
-                            " ",
-                            "poolId:",
+                            ' ',
+                            'poolId:',
                             Strings.toString(poolId),
-                            " ",
-                            "amount:",
+                            ' ',
+                            'amount:',
                             Strings.toString(amount)
                         )
                     )
